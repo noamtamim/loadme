@@ -45,9 +45,10 @@ def post(url: str, data: dict, headers: dict):
 
 def hit(base_url, targets, headers, test_id):
     try:
-        start = time.time()
         func = random.choice(targets)
         url, data = func()
+        
+        start = time.time()
         post(f'{base_url}{url}?testid={test_id}&random={token_urlsafe(7)}', data, headers)
         end = time.time()
 
