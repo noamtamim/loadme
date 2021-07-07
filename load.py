@@ -116,6 +116,7 @@ def run(base_url, targets, test_sec, headers=None, test_id=None):
                       f'avg resp time: {response_time_sum/requests_completed:.0f} msec')
                 print(f'[Period] completed: {requests_completed_period:,}, '
                       f'avg resp time: {response_time_sum_period/requests_completed_period:.0f} msec')
+                pprint(dict(stats))
                 csv_out.write(f'{elapsed:.3f},{requests_completed_period},{response_time_sum_period/requests_completed_period:.0f}\n')
                 csv_out.flush()
 
@@ -133,4 +134,4 @@ def run(base_url, targets, test_sec, headers=None, test_id=None):
           f'{response_time_sum / requests_completed:.0f} msec avg response time')
     print(f'{max_workers} workers used')
 
-    pp(dict(stats))
+    pprint(dict(stats))
