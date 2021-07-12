@@ -5,14 +5,13 @@ import random
 import threading
 import time
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+# from concurrent.futures import ThreadPoolExecutor as exec_type
+from concurrent.futures import ProcessPoolExecutor as exec_type
 from pprint import pprint
 from secrets import token_urlsafe
 
 from requests import Session
 
-# exec_type = ThreadPoolExecutor
-exec_type = ProcessPoolExecutor
 
 local = threading.local()
 
@@ -110,7 +109,6 @@ def run(base_url, targets, test_sec, headers=None, test_id=None):
                         requests_completed_period += 1
 
                 if not done:
-                    print('Waiting')
                     time.sleep(0.1)
 
             if time.time() - report_time > 1:
