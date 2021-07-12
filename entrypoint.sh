@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-env
+# env
 
 set -ex
 
-python -c "from urllib.request import urlretrieve; urlretrieve('$1', '/script.py')"
+python -c "from urllib.request import urlretrieve; urlretrieve('$1', 'script.py')"
 
 shift
 
 export PYTHONUNBUFFERED=1
 
-python /script.py "$@"
+python script.py "$@"

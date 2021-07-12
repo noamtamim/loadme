@@ -4,7 +4,6 @@ import os
 import random
 import threading
 import time
-import traceback
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from pprint import pprint
@@ -35,29 +34,32 @@ def post(url: str, data: dict, headers: dict):
         session = Session()
         local.session = session
 
-    with session.post(url,
-                      json=data,
-                      headers=headers) as response:
+    try:
+        with session.post(url,
+                        json=data,
+                        headers=headers) as response:
 
-        if response.status_code >= 300:
-            print(response.json())
+            if not response.ok:  # some HTTP-level error
+                code = response.status_code
+                print(code, response.text)
+                return str(code)
+
+            return None
+    
+    except Exception as e:
+        t = type(e)
+        return f'{t.__module__}.{t.__name__}'
 
 
 def hit(base_url, targets, headers, test_id):
-    try:
-        func = random.choice(targets)
-        url, data = func()
-        
-        start = time.time()
-        post(f'{base_url}{url}?testid={test_id}&random={token_urlsafe(7)}', data, headers)
-        end = time.time()
+    func = random.choice(targets)
+    url, data = func()
+    
+    start = time.time()
+    error = post(f'{base_url}{url}?testid={test_id}&random={token_urlsafe(7)}', data, headers)
+    end = time.time()
 
-        return url, end * 1000 - start * 1000
-
-    except Exception as e:
-        print(e)
-        traceback.print_stack()
-        return 0
+    return url, error, end * 1000 - start * 1000
 
 
 def run(base_url, targets, test_sec, headers=None, test_id=None):
@@ -73,6 +75,7 @@ def run(base_url, targets, test_sec, headers=None, test_id=None):
     max_workers = os.cpu_count() * 2 + 1
 
     stats = defaultdict(int)
+    fails = defaultdict(int)
 
     with exec_type(max_workers=max_workers) as executor:
 
@@ -95,8 +98,11 @@ def run(base_url, targets, test_sec, headers=None, test_id=None):
                 for f in list(futures):
                     if f.done():
                         done = True
-                        req_endpoint, req_time = f.result()
+                        req_endpoint, error, req_time = f.result()
                         stats[req_endpoint] += 1
+                        if error:
+                            fails[error] += 1
+                        
                         response_time_sum += req_time
                         response_time_sum_period += req_time
                         futures.remove(f)
@@ -125,8 +131,11 @@ def run(base_url, targets, test_sec, headers=None, test_id=None):
                 response_time_sum_period = 0
 
     for f in futures:
-        req_endpoint, req_time = f.result()
+        req_endpoint, error, req_time = f.result()
         stats[req_endpoint] += 1
+        if error:
+            fails[error] += 1
+
         response_time_sum += req_time
         requests_completed += 1
 
@@ -134,4 +143,8 @@ def run(base_url, targets, test_sec, headers=None, test_id=None):
           f'{response_time_sum / requests_completed:.0f} msec avg response time')
     print(f'{max_workers} workers used')
 
+    print('Counts:')
     pprint(dict(stats))
+
+    print('Errors:')
+    pprint(dict(fails))
