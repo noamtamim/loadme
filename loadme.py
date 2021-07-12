@@ -130,14 +130,14 @@ class Runner:
                     now = time.time()
                     elapsed = now - start_time
 
-                    print(f'[Totals] elapsed: {elapsed:.3f} sec, completed: {self.requests_completed:,}, '
-                          f'submitted: {self.requests_submitted:,}, pending: {len(futures)}, '
-                          f'rps: {self.requests_completed / elapsed:.1f}, '
+                    print(f'[Totals] elapsed: {elapsed:.3f} sec | completed: {self.requests_completed:,} | '
+                          f'submitted: {self.requests_submitted:,} | pending: {len(futures)} | '
+                          f'rps: {self.requests_completed / elapsed:.1f} | '
                           f'avg resp time: {self.response_time / self.requests_completed:.0f} msec')
 
                     self.print_stats()
 
-                    print(f'[Period] completed: {requests_completed_period:,}, '
+                    print(f'[Period] completed: {requests_completed_period:,} | '
                           f'avg resp time: {response_time_sum_period / requests_completed_period:.0f} msec')
 
                     csv_out.write(
@@ -153,7 +153,7 @@ class Runner:
 
         print(f'===== Summary for test {self.test_id} =====')
 
-        print(f'{self.requests_completed:,} reqs in {(now - start_time)} sec, '
+        print(f'{self.requests_completed:,} reqs in {(now - start_time)} sec | '
               f'{self.response_time / self.requests_completed:.0f} msec avg response time')
         print(f'{self.max_workers} workers used')
 
