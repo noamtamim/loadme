@@ -59,7 +59,7 @@ def hit(base_url, targets, headers, test_id):
 
 
 class Runner:
-    def __init__(self, base_url, targets, test_sec, headers, test_id, exec_type):
+    def __init__(self, base_url, targets, test_sec, headers, test_id, exec_type, workers):
         self.base_url = base_url
         self.targets = build_targets(targets)
         self.test_sec = test_sec
@@ -73,7 +73,7 @@ class Runner:
         self.requests_completed = 0
         self.requests_submitted = 0
 
-        self.max_workers = os.cpu_count() * 2 + 1
+        self.max_workers = workers or (os.cpu_count() * 2 + 1)
 
         if exec_type == 'p':
             self.exec_class = ProcessPoolExecutor
@@ -167,5 +167,5 @@ class Runner:
         pprint(dict(self.fails))
 
 
-def run(base_url, targets, test_sec, headers=None, test_id=None, exec_type='p'):
-    Runner(base_url, targets, test_sec, headers, test_id, exec_type).run()
+def run(base_url, targets, test_sec, headers=None, test_id=None, exec_type='p', workers=None):
+    Runner(base_url, targets, test_sec, headers, test_id, exec_type, workers).run()
