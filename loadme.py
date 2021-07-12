@@ -80,10 +80,11 @@ def run(base_url, targets, test_sec, headers=None, test_id=None, exec_type='p'):
         exec_class = ProcessPoolExecutor
     elif exec_type == 't':
 #         max_workers = min(32, (os.cpu_count() or 1) + 4)
-        exec_type = ThreadPoolExecutor
+        exec_class = ThreadPoolExecutor
     else:
         raise ValueError('Invalid exec_type ' + exec_type)
-        
+    
+    
     max_workers = os.cpu_count() * 2 + 1
     
 
