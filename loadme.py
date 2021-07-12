@@ -5,8 +5,7 @@ import random
 import threading
 import time
 from collections import defaultdict
-# from concurrent.futures import ThreadPoolExecutor as exec_type
-from concurrent.futures import ProcessPoolExecutor as exec_type
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from pprint import pprint
 from secrets import token_urlsafe
 
@@ -61,7 +60,7 @@ def hit(base_url, targets, headers, test_id):
     return url, error, end * 1000 - start * 1000
 
 
-def run(base_url, targets, test_sec, headers=None, test_id=None):
+def run(base_url, targets, test_sec, headers=None, test_id=None, exec_type='p'):
 
     targets = build_targets(targets)
 
@@ -75,8 +74,10 @@ def run(base_url, targets, test_sec, headers=None, test_id=None):
 
     stats = defaultdict(int)
     fails = defaultdict(int)
+    
+    exec_class = dict(t=ThreadPoolExecutor, p=ProcessPoolExecutor)[exec_type]
 
-    with exec_type(max_workers=max_workers) as executor:
+    with exec_class(max_workers=max_workers) as executor:
 
         start_time = time.time()
         report_time = start_time
