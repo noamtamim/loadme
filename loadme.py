@@ -75,9 +75,21 @@ def run(base_url, targets, test_sec, headers=None, test_id=None, exec_type='p'):
     stats = defaultdict(int)
     fails = defaultdict(int)
     
-    exec_class = dict(t=ThreadPoolExecutor, p=ProcessPoolExecutor)[exec_type]
+    if exec_type == 'p':
+#         max_workers = os.cpu_count() * 2
+        exec_class = ProcessPoolExecutor
+    elif exec_type == 't':
+#         max_workers = min(32, (os.cpu_count() or 1) + 4)
+        exec_type = ThreadPoolExecutor
+    else:
+        raise ValueError('Invalid exec_type ' + exec_type)
+        
+    max_workers = os.cpu_count() * 2 + 1
+    
 
     with exec_class(max_workers=max_workers) as executor:
+        
+        print('Executor:', executor)
 
         start_time = time.time()
         report_time = start_time
