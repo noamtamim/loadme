@@ -151,6 +151,8 @@ class Runner:
         for f in futures:
             self.handle_result(f)
 
+        print('===== Summary =====')
+
         print(f'{self.requests_completed:,} reqs in {(now - start_time)} sec, '
               f'{self.response_time / self.requests_completed:.0f} msec avg response time')
         print(f'{self.max_workers} workers used')
