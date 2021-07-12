@@ -58,92 +58,112 @@ def hit(base_url, targets, headers, test_id):
     return url, error, end * 1000 - start * 1000
 
 
-def run(base_url, targets, test_sec, headers=None, test_id=None, exec_type='p'):
-    targets = build_targets(targets)
+class Runner:
+    def __init__(self, base_url, targets, test_sec, headers, test_id, exec_type):
+        self.base_url = base_url
+        self.targets = build_targets(targets)
+        self.test_sec = test_sec
+        self.headers = headers
+        self.test_id = test_id
 
-    csv_out = open('results.csv', 'wt')
-    csv_out.write('time,completed,avg_resp_time\n')
+        self.stats = defaultdict(int)
+        self.fails = defaultdict(int)
 
-    futures = set()
+        self.response_time = 0
+        self.requests_completed = 0
+        self.requests_submitted = 0
 
-    stats = defaultdict(int)
-    fails = defaultdict(int)
+        self.max_workers = os.cpu_count() * 2 + 1
 
-    totals = dict(response_time=0, requests_completed=0, requests_submitted=0)
+        if exec_type == 'p':
+            self.exec_class = ProcessPoolExecutor
+        elif exec_type == 't':
+            self.exec_class = ThreadPoolExecutor
+        else:
+            raise ValueError('Invalid exec_type ' + exec_type)
 
-    def handle_result(fut):
+    def handle_result(self, fut):
         req_endpoint, error, req_time = fut.result()
-        stats[req_endpoint] += 1
+        self.stats[req_endpoint] += 1
         if error:
-            fails[error] += 1
+            self.fails[error] += 1
 
-        totals['response_time'] += req_time
-        totals['requests_completed'] += 1
+        self.response_time += req_time
+        self.requests_completed += 1
 
         return req_time
 
-    if exec_type == 'p':
-        exec_class = ProcessPoolExecutor
-    elif exec_type == 't':
-        exec_class = ThreadPoolExecutor
-    else:
-        raise ValueError('Invalid exec_type ' + exec_type)
+    def run(self):
 
-    max_workers = os.cpu_count() * 2 + 1
+        csv_out = open('results.csv', 'wt')
+        csv_out.write('time,completed,avg_resp_time\n')
 
-    with exec_class(max_workers=max_workers) as executor:
-        print('Executor:', executor)
+        futures = set()
 
-        start_time = time.time()
-        report_time = start_time
-        requests_completed_period = 0
-        response_time_sum_period = 0
+        with self.exec_class(max_workers=self.max_workers) as executor:
+            print('Executor:', executor)
 
-        while time.time() - start_time <= test_sec:
-            future = executor.submit(hit, base_url, targets, headers, test_id)
-            totals['requests_submitted'] += 1
-            futures.add(future)
+            start_time = time.time()
+            report_time = start_time
+            requests_completed_period = 0
+            response_time_sum_period = 0
 
-            while len(futures) >= max_workers * max(requests_completed_period / max_workers, 10):
-                done = False
-                for f in list(futures):
-                    if f.done():
-                        done = True
-                        response_time_sum_period += handle_result(f)
-                        requests_completed_period += 1
+            while time.time() - start_time <= self.test_sec:
+                future = executor.submit(hit, self.base_url, self.targets, self.headers, self.test_id)
+                self.requests_submitted += 1
+                futures.add(future)
 
-                        futures.remove(f)
+                while len(futures) >= self.max_workers * max(requests_completed_period / self.max_workers, 10):
+                    done = False
+                    for f in list(futures):
+                        if f.done():
+                            done = True
+                            response_time_sum_period += self.handle_result(f)
+                            requests_completed_period += 1
 
-                if not done:
-                    time.sleep(0.1)
+                            futures.remove(f)
 
-            if time.time() - report_time > 1:
-                now = time.time()
-                elapsed = now - start_time
-                print(f'[Totals] elapsed: {elapsed:.3f} sec, completed: {totals["requests_completed"]:,}, '
-                      f'submitted: {totals["requests_submitted"]:,}, pending: {len(futures)}, '
-                      f'rps: {totals["requests_completed"] / elapsed:.1f}, '
-                      f'avg resp time: {totals["response_time"] / totals["requests_completed"]:.0f} msec')
-                print(f'[Period] completed: {requests_completed_period:,}, '
-                      f'avg resp time: {response_time_sum_period / requests_completed_period:.0f} msec')
-                pprint(dict(stats))
-                csv_out.write(
-                    f'{elapsed:.3f},{requests_completed_period},{response_time_sum_period / requests_completed_period:.0f}\n')
-                csv_out.flush()
+                    if not done:
+                        time.sleep(0.1)
 
-                report_time = now
-                requests_completed_period = 0
-                response_time_sum_period = 0
+                if time.time() - report_time > 1:
+                    now = time.time()
+                    elapsed = now - start_time
 
-    for f in futures:
-        handle_result(f)
+                    print(f'[Totals] elapsed: {elapsed:.3f} sec, completed: {self.requests_completed:,}, '
+                          f'submitted: {self.requests_submitted:,}, pending: {len(futures)}, '
+                          f'rps: {self.requests_completed / elapsed:.1f}, '
+                          f'avg resp time: {self.response_time / self.requests_completed:.0f} msec')
 
-    print(f'{totals["requests_completed"]:,} reqs in {(now - start_time)} sec, '
-          f'{totals["response_time"] / totals["requests_completed"]:.0f} msec avg response time')
-    print(f'{max_workers} workers used')
+                    self.print_stats()
 
-    print('Counts:')
-    pprint(dict(stats))
+                    print(f'[Period] completed: {requests_completed_period:,}, '
+                          f'avg resp time: {response_time_sum_period / requests_completed_period:.0f} msec')
 
-    print('Errors:')
-    pprint(dict(fails))
+                    csv_out.write(
+                        f'{elapsed:.3f},{requests_completed_period},{response_time_sum_period / requests_completed_period:.0f}\n')
+                    csv_out.flush()
+
+                    report_time = now
+                    requests_completed_period = 0
+                    response_time_sum_period = 0
+
+        for f in futures:
+            self.handle_result(f)
+
+        print(f'{self.requests_completed:,} reqs in {(now - start_time)} sec, '
+              f'{self.response_time / self.requests_completed:.0f} msec avg response time')
+        print(f'{self.max_workers} workers used')
+
+        self.print_stats()
+
+    def print_stats(self):
+        print('Counts:')
+        pprint(dict(self.stats))
+
+        print('Errors:')
+        pprint(dict(self.fails))
+
+
+def run(base_url, targets, test_sec, headers=None, test_id=None, exec_type='p'):
+    Runner(base_url, targets, test_sec, headers, test_id, exec_type).run()
